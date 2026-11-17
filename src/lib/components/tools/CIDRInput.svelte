@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { validateCIDR } from '$lib/utils/ip-validation.js';
+  import { parseIPv4Network } from '$lib/utils/ip-validation.js';
   import type { ValidationResult } from '$lib/types/ip.js';
   import Tooltip from '$lib/components/global/Tooltip.svelte';
   import SvgIcon from '$lib/components/global/SvgIcon.svelte';
@@ -23,6 +23,14 @@
   }: Props = $props();
 
   let validation: ValidationResult = $state({ valid: true });
+
+  /**
+   * Accepts both prefix (/24) and dotted mask (/255.255.255.0) formats
+   */
+  function validateNetwork(input: string): ValidationResult {
+    const parsed = parseIPv4Network(input);
+    return parsed.valid ? { valid: true } : { valid: false, error: parsed.error };
+  }
   let focused = $state(false);
 
   /**
@@ -43,9 +51,9 @@
    * Check if current value matches a preset
    */
   function getActivePreset(): number | null {
-    if (!value || !value.includes('/')) return null;
-    const currentCidr = parseInt(value.split('/')[1], 10);
-    return cidrPresets.find((p) => p.cidr === currentCidr)?.cidr || null;
+    const parsed = parseIPv4Network(value);
+    if (!parsed.valid) return null;
+    return cidrPresets.find((p) => p.cidr === parsed.prefix)?.cidr || null;
   }
 
   // Derive active preset from current value
@@ -57,20 +65,20 @@
   function handleInput(event: Event) {
     const target = event.target as HTMLInputElement;
     value = target.value;
-    validation = validateCIDR(value);
+    validation = validateNetwork(value);
   }
 
   /**
    * Applies CIDR preset
    */
   function applyPreset(cidr: number) {
-    if (value && value.includes('/')) {
-      const ip = value.split('/')[0];
+    if (value && /[\/\s]/.test(value.trim())) {
+      const ip = value.trim().split(/\s*\/\s*|\s+/)[0];
       value = `${ip}/${cidr}`;
     } else if (value) {
       value = `${value}/${cidr}`;
     }
-    validation = validateCIDR(value);
+    validation = validateNetwork(value);
   }
 </script>
 

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { calculateSubnet } from '$lib/utils/ip-calculations.js';
-  import { validateCIDR } from '$lib/utils/ip-validation.js';
+  import { parseIPv4Network } from '$lib/utils/ip-validation.js';
   import { formatNumber } from '$lib/utils/formatters.js';
   import CIDRInput from '$lib/components/tools/CIDRInput.svelte';
   import NetworkVisualizer from '$lib/components/tools/NetworkVisualizer.svelte';
@@ -34,10 +34,10 @@
    * Calculate subnet info when input changes
    */
   $effect(() => {
-    if (cidrInput && validateCIDR(cidrInput).valid) {
-      const [ip, cidr] = cidrInput.split('/');
+    const parsed = parseIPv4Network(cidrInput);
+    if (parsed.valid && parsed.ip !== undefined && parsed.prefix !== undefined) {
       try {
-        subnetInfo = calculateSubnet(ip, parseInt(cidr, 10));
+        subnetInfo = calculateSubnet(parsed.ip, parsed.prefix);
         if (!hasEverShownResults) {
           hasEverShownResults = true;
         }
@@ -62,7 +62,11 @@
 >
   <!-- Input -->
   <div class="form-group">
-    <CIDRInput bind:value={cidrInput} label="Network Address (CIDR)" placeholder="192.168.1.0/24" />
+    <CIDRInput
+      bind:value={cidrInput}
+      label="Network Address (CIDR or subnet mask)"
+      placeholder="192.168.1.0/24 or 192.168.1.0/255.255.255.0"
+    />
   </div>
 
   <!-- Results -->

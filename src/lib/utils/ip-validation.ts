@@ -596,6 +596,56 @@ export function validateCIDR(cidr: string): ValidationResult {
   return { valid: true };
 }
 
+export interface ParsedIPv4Network {
+  valid: boolean;
+  error?: string;
+  ip?: string;
+  prefix?: number;
+}
+
+/**
+ * Parses an IPv4 network written either as CIDR prefix or as a dotted subnet mask.
+ * Accepts: "192.168.1.0/24", "192.168.1.0/255.255.255.0" and "192.168.1.0 255.255.255.0"
+ */
+export function parseIPv4Network(input: string): ParsedIPv4Network {
+  if (!input || !input.trim()) {
+    return { valid: false, error: 'Network address is required' };
+  }
+
+  const parts = input.trim().split(/\s*\/\s*|\s+/);
+  if (parts.length !== 2 || !parts[1]) {
+    return { valid: false, error: 'Use IP/prefix (e.g. 192.168.1.0/24) or IP/mask (e.g. 192.168.1.0/255.255.255.0)' };
+  }
+
+  const [ip, suffix] = parts;
+  const ipValidation = validateIPv4(ip);
+  if (!ipValidation.valid) {
+    return { valid: false, error: ipValidation.error };
+  }
+
+  if (suffix.includes('.')) {
+    const maskValidation = validateSubnetMask(suffix);
+    if (!maskValidation.valid) {
+      return { valid: false, error: maskValidation.error || 'Invalid subnet mask' };
+    }
+    const binary = suffix
+      .split('.')
+      .map((n) => Number(n).toString(2).padStart(8, '0'))
+      .join('');
+    return { valid: true, ip, prefix: binary.indexOf('0') === -1 ? 32 : binary.indexOf('0') };
+  }
+
+  if (!/^\d{1,2}$/.test(suffix)) {
+    return { valid: false, error: 'CIDR prefix must be between 0-32 or a subnet mask like 255.255.255.0' };
+  }
+  const prefix = parseInt(suffix, 10);
+  if (prefix < 0 || prefix > 32) {
+    return { valid: false, error: 'CIDR prefix must be between 0-32 or a subnet mask like 255.255.255.0' };
+  }
+
+  return { valid: true, ip, prefix };
+}
+
 /**
  * Validates subnet mask
  */
