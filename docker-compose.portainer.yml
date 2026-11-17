@@ -1,0 +1,21 @@
+# Builds the image from source (incl. local changes) instead of pulling from Docker Hub.
+# Use this file as the "Compose path" for a Git-repository stack in Portainer.
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: networking-toolbox:custom
+    pull_policy: build
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - HOST=0.0.0.0
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
